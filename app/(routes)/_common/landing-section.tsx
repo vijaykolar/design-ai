@@ -104,7 +104,7 @@ const LandingSection = () => {
                     <Suggestion
                       key={s.label}
                       suggestion={s.label}
-                      className="text-xs! h-7! px-2.5 pt-1!"
+                      className="text-xs! px-2.5"
                       onClick={() => handleSuggestionClick(s.value)}
                     >
                       {s.icon}
@@ -117,7 +117,7 @@ const LandingSection = () => {
 
             <div
               className="absolute -translate-x-1/2
-             left-1/2 w-[5000px] h-[3000px] top-[80%]
+             left-1/2 w-[5000px] h-[3000px] top-[80%] 2xl:top-[60%]
              -z-10"
             >
               <div
@@ -139,7 +139,15 @@ const LandingSection = () => {
             </div>
           </div>
         </div>
-
+        <div className="w-full py-10">
+          <div className="mx-auto max-w-3xl">
+            <div>
+              <h1 className="font-medium text-xl tracking-tight">
+                Recent Projects
+              </h1>
+            </div>
+          </div>
+        </div>
         {/* <div className="w-full py-10">
           <div className="mx-auto max-w-3xl">
             {userId && (

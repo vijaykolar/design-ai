@@ -29,7 +29,7 @@ const PromptInput = ({
   hideSubmitBtn = false,
 }: PromptInputProps) => {
   return (
-    <div className="bg-backgrounwd">
+    <div className="bg-background">
       <InputGroup
         className={cn("min-h-[172px] rounded-3xl bg-backgrouwnd", className)}
       >
