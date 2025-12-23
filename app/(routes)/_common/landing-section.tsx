@@ -4,10 +4,12 @@ import React, { memo, useState } from "react";
 import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion";
 import PromptInput from "@/components/prompt-input";
 import Header from "./header";
+import { useCreateProject } from "@/features/use-project";
 
 const LandingSection = () => {
   // const { user } = useKindeBrowserClient();
   const [promptText, setPromptText] = useState<string>("");
+  const { mutate, isPending } = useCreateProject();
   // const userId = user?.id;
 
   // const { data: projects, isLoading, isError } = useGetProjects(userId);
@@ -52,7 +54,7 @@ const LandingSection = () => {
 
   const handleSubmit = () => {
     if (!promptText) return;
-    // mutate(promptText);
+    mutate(promptText);
   };
 
   return (
@@ -93,7 +95,7 @@ const LandingSection = () => {
                   className="ring-2 ring-primary"
                   promptText={promptText}
                   setPromptText={setPromptText}
-                  // isLoading={isPending}
+                  isLoading={isPending}
                   onSubmit={handleSubmit}
                 />
               </div>
