@@ -35,3 +35,33 @@ export async function POST(request: Request) {
     });
   }
 }
+
+export async function GET(request: Request) {
+  try {
+    const session = await getKindeServerSession();
+    const user = await session.getUser();
+
+    if (!user) throw new Error("Unauthorized");
+
+    const projects = await prisma.project.findMany({
+      where: {
+        userId: user.id,
+      },
+      take: 10,
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: projects,
+    });
+  } catch (error) {
+    return NextResponse.json({
+      success: false,
+      message:
+        (error as unknown as Error).message || "Failed to fetch projects",
+    });
+  }
+}

@@ -23,3 +23,14 @@ export const useCreateProject = () => {
     },
   });
 };
+
+export const useGetProjects = (userId: string) => {
+  return useQuery({
+    queryKey: ["projects", userId],
+    queryFn: async () =>
+      await axios.get("/api/project").then((res) => res.data),
+    enabled: !!userId,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    // cacheTime: 1000 * 60 * 10, // 10 minutes
+  });
+};
