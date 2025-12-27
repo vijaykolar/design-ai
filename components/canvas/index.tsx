@@ -1,7 +1,11 @@
 import { LoadingStatusType, useCanvas } from "@/context/canvas-context";
+import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { cn } from "@/lib/utils";
 import { Spinner } from "../ui/spinner";
 import CanvasFloatingToolbar from "./canvas-floating-toolbar";
+import { useState } from "react";
+import { TOOL_MODE_ENUM, ToolModeType } from "@/constants/canvas";
+import CanvasControls from "./canvas-controls";
 type Props = {
   projectId?: string;
   projectName?: string | null;
@@ -11,6 +15,14 @@ type Props = {
 const Canvas = ({ projectId, projectName, isPending }: Props) => {
   const { frames, setSelectedFrameId, theme, loadingStatus, selectedFrame } =
     useCanvas();
+
+  const [toolMode, setToolMode] = useState<ToolModeType>(TOOL_MODE_ENUM.SELECT);
+  const [zoomPercent, setZoomPercent] = useState<number>(53);
+  const [currentScale, setCurrentScale] = useState<number>(0.53);
+  const [openHtmlDialog, setOpenHtmlDialog] = useState(false);
+  const [isScreenshotting, setIsScreenshotting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
   const currentStatus = isPending
     ? "fetching"
     : loadingStatus !== "idle" && loadingStatus !== "completed"
@@ -20,16 +32,69 @@ const Canvas = ({ projectId, projectName, isPending }: Props) => {
     <div className="relative w-full h-full overflow-hidden">
       <CanvasFloatingToolbar />
       {currentStatus && <CanvasLoader status={currentStatus} />}
-      <div
-        className={cn(
-          "absolute w-full inset-0 h-full bg-[#eee] dark:bg-[#242423] p-3"
-        )}
-        style={{
-          backgroundImage:
-            "radial-gradient(circle, var(--primary) 1px, transparent 1px)",
-          backgroundSize: "20px 20px",
+      <TransformWrapper
+        initialScale={0.53}
+        initialPositionX={40}
+        initialPositionY={5}
+        minScale={0.1}
+        maxScale={3}
+        wheel={{ step: 0.1 }}
+        pinch={{ step: 0.1 }}
+        doubleClick={{ disabled: true }}
+        centerZoomedOut={false}
+        centerOnInit={false}
+        smooth={true}
+        limitToBounds={false}
+        panning={{
+          disabled: toolMode !== TOOL_MODE_ENUM.HAND,
         }}
-      ></div>
+        onTransformed={(ref) => {
+          setZoomPercent(Math.round(ref.state.scale * 100));
+          setCurrentScale(ref.state.scale);
+        }}
+      >
+        {({ zoomIn, zoomOut }) => (
+          <>
+            <div
+              className={cn(
+                `absolute inset-0 w-full h-full bg-[#eee]
+                  dark:bg-[#242423] p-3
+              `,
+                toolMode === TOOL_MODE_ENUM.HAND
+                  ? "cursor-grab active:cursor-grabbing"
+                  : "cursor-default"
+              )}
+              style={{
+                backgroundImage:
+                  "radial-gradient(circle, var(--primary) 1px, transparent 1px)",
+                backgroundSize: "20px 20px",
+              }}
+            >
+              <TransformComponent
+                wrapperStyle={{
+                  width: "100%",
+                  height: "100%",
+                  overflow: "unset",
+                }}
+                contentStyle={{
+                  width: "100%",
+                  height: "100%",
+                  backgroundColor: "red",
+                }}
+              >
+                <div className="size-5 bg-primary">Box</div>
+              </TransformComponent>
+            </div>
+            <CanvasControls
+              zoomIn={zoomIn}
+              zoomOut={zoomOut}
+              zoomPercent={zoomPercent}
+              toolMode={toolMode}
+              setToolMode={setToolMode}
+            />
+          </>
+        )}
+      </TransformWrapper>
     </div>
   );
 };
