@@ -10,9 +10,11 @@
     "p:m": "npx prisma migrate dev --name init --preview-feature",
     "p:g": "npx prisma generate",
     "p:p": "npx prisma db push",
-    "p:a": "npx prisma studio"
+    "p:a": "npx prisma studio",
+    "i:d": "npx --ignore-scripts=false inngest-cli@latest dev"
   },
   "dependencies": {
+    "@inngest/realtime": "^0.4.5",
     "@kinde-oss/kinde-auth-nextjs": "^2.11.0",
     "@openrouter/ai-sdk-provider": "^1.5.4",
     "@prisma/client": "^6.19.0",
@@ -32,6 +34,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",
+    "inngest": "^3.48.1",
     "lucide-react": "^0.562.0",
     "next": "16.1.0",
     "next-themes": "^0.4.6",

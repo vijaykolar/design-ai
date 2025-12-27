@@ -1,5 +1,5 @@
-import { cons } from "./../../../node_modules/effect/src/List";
 import { generateProjectName } from "@/app/action/action";
+import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { error, log } from "console";
@@ -24,6 +24,20 @@ export async function POST(request: Request) {
         name: projectName,
       },
     });
+
+    try {
+      await inngest.send({
+        name: "ui/generate.screens",
+        data: {
+          userId,
+          projectId: project.id,
+          prompt,
+        },
+      });
+    } catch (error) {
+      console.log(error);
+    }
+
     return NextResponse.json({
       success: true,
       data: project,

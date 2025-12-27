@@ -1,7 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useInngestSubscription } from "@inngest/realtime/hooks";
+import { fetchRealtimeSubscriptionToken } from "@/app/action/realtime";
 import { THEME_LIST, ThemeType } from "@/lib/theme";
 import { FrameType } from "@/types/project";
 import {
   createContext,
+  ReactNode,
   useCallback,
   useContext,
   useEffect,
@@ -29,7 +33,8 @@ interface CanvasContextType {
   selectedFrame: FrameType | null;
   setSelectedFrameId: (id: string | null) => void;
 
-  loadingStatus: LoadingStatusType;
+  loadingStatus: LoadingStatusType | null;
+  setLoadingStatus: (status: LoadingStatusType | null) => void;
 }
 
 const CanvasContext = createContext<CanvasContextType | undefined>(undefined);
@@ -41,50 +46,107 @@ export const CanvasProvider = ({
   hasInitialData,
   projectId,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   initialFrames: FrameType[];
   initialThemeId?: string;
   hasInitialData: boolean;
-  projectId?: string | null;
+  projectId: string | null;
 }) => {
   const [themeId, setThemeId] = useState<string>(
     initialThemeId || THEME_LIST[0].id
   );
+  console.log(initialFrames, "initialFrames");
   const [frames, setFrames] = useState<FrameType[]>(initialFrames);
   const [selectedFrameId, setSelectedFrameId] = useState<string | null>(null);
-  const [loadingStatus, setLoadingStatus] = useState<LoadingStatusType>(
-    hasInitialData ? "idle" : "running"
+
+  const [loadingStatus, setLoadingStatus] = useState<LoadingStatusType | null>(
+    null
   );
 
-  const theme = THEME_LIST.find((t) => t.id === themeId) || THEME_LIST[0];
+  const [prevProjectId, setPrevProjectId] = useState(projectId);
+  if (projectId !== prevProjectId) {
+    setPrevProjectId(projectId);
+    setLoadingStatus(hasInitialData ? "idle" : "running");
+    setFrames(initialFrames);
+    setThemeId(initialThemeId || THEME_LIST[0].id);
+    setSelectedFrameId(null);
+  }
 
+  const theme = THEME_LIST.find((t) => t.id === themeId);
   const selectedFrame =
-    selectedFrameId && frames?.length !== 0
-      ? frames.find((frame) => frame.id === selectedFrameId) || null
+    selectedFrameId && frames.length !== 0
+      ? frames.find((f) => f.id === selectedFrameId) || null
       : null;
-  //   useEffect(() => {
-  //     if (hasInitialData) {
-  //       // eslint-disable-next-line react-hooks/set-state-in-effect
-  //       setLoadingStatus("idle");
-  //     }
-  //   }, [hasInitialData]);
 
-  //   useEffect(() => {
-  //     if (initialThemeId) {
-  //       // eslint-disable-next-line react-hooks/set-state-in-effect
-  //       setThemeId(initialThemeId);
-  //     }
-  //   }, [initialThemeId]);
+  //Update the LoadingState Inngest Realtime event
+  const { freshData } = useInngestSubscription({
+    refreshToken: fetchRealtimeSubscriptionToken,
+  });
+
+  useEffect(() => {
+    if (!freshData || freshData.length === 0) return;
+
+    freshData.forEach((message) => {
+      const { data, topic } = message;
+
+      if (data.projectId !== projectId) return;
+
+      switch (topic) {
+        case "generation.start":
+          const status = data.status;
+          setLoadingStatus(status);
+          break;
+        case "analysis.start":
+          setLoadingStatus("analyzing");
+        case "analysis.complete":
+          setLoadingStatus("generating");
+          if (data.theme) setThemeId(data.theme);
+
+          if (data.screens && data.screens.length > 0) {
+            const skeletonFrames: FrameType[] = data.screens.map((s: any) => ({
+              id: s.id,
+              title: s.name,
+              htmlContent: "",
+              isLoading: true,
+            }));
+            setFrames((prev) => [...prev, ...skeletonFrames]);
+          }
+          break;
+        case "frame.created":
+          if (data.frame) {
+            setFrames((prev) => {
+              const newFrames = [...prev];
+              const idx = newFrames.findIndex((f) => f.id === data.screenId);
+              if (idx !== -1) newFrames[idx] = data.frame;
+              else newFrames.push(data.frame);
+              return newFrames;
+            });
+          }
+          break;
+        case "generation.complete":
+          setLoadingStatus("completed");
+          setTimeout(() => {
+            setLoadingStatus("idle");
+          }, 100);
+          break;
+        default:
+          break;
+      }
+    });
+  }, [projectId, freshData]);
 
   const addFrame = useCallback((frame: FrameType) => {
     setFrames((prev) => [...prev, frame]);
   }, []);
 
   const updateFrame = useCallback((id: string, data: Partial<FrameType>) => {
-    setFrames((prev) =>
-      prev.map((frame) => (frame.id === id ? { ...frame, ...data } : frame))
-    );
+    setFrames((prev) => {
+      return prev.map((frame) =>
+        frame.id === id ? { ...frame, ...data } : frame
+      );
+    });
   }, []);
+
   return (
     <CanvasContext.Provider
       value={{
@@ -99,6 +161,7 @@ export const CanvasProvider = ({
         updateFrame,
         addFrame,
         loadingStatus,
+        setLoadingStatus,
       }}
     >
       {children}
@@ -107,9 +170,7 @@ export const CanvasProvider = ({
 };
 
 export const useCanvas = () => {
-  const context = useContext(CanvasContext);
-  if (!context) {
-    throw new Error("useCanvas must be used within a CanvasProvider");
-  }
-  return context;
+  const ctx = useContext(CanvasContext);
+  if (!ctx) throw new Error("useCanvas must be used inside CanvasProvider");
+  return ctx;
 };

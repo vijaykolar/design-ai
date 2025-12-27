@@ -34,6 +34,8 @@ const Canvas = ({
     loadingStatus,
     // setLoadingStatus,
   } = useCanvas();
+  console.log(frames, "freames");
+
   const [toolMode, setToolMode] = useState<ToolModeType>(TOOL_MODE_ENUM.SELECT);
   const [zoomPercent, setZoomPercent] = useState<number>(53);
   const [currentScale, setCurrentScale] = useState<number>(0.53);
@@ -159,8 +161,10 @@ const Canvas = ({
       <div className="relative w-full h-full overflow-hidden">
         <CanvasFloatingToolbar
           projectId={projectId}
+          isScreenshotting={false}
+          onScreenshot={() => {}}
           // isScreenshotting={isScreenshotting}
-          onScreenshot={handleCanvasScreenshot}
+          // onScreenshot={handleCanvasScreenshot}
         />
 
         {currentStatus && <CanvasLoader status={currentStatus} />}
@@ -215,7 +219,6 @@ const Canvas = ({
                     height: "100%",
                   }}
                 >
-                  {console.log(frames)}
                   <div>
                     {frames?.map((frame, index: number) => {
                       const baseX = 100 + index * 480;
@@ -251,20 +254,6 @@ const Canvas = ({
                       );
                     })}
                   </div>
-                  <DeviceFrame
-                    projectId="s"
-                    frameId="demo"
-                    title="Demo Screen"
-                    html={DEMO_HTML}
-                    scale={currentScale}
-                    initialPosition={{
-                      x: 1000,
-                      y: 100,
-                    }}
-                    toolMode={toolMode}
-                    theme_style={theme?.style}
-                    onOpenHtmlDialog={onOpenHtmlDialog}
-                  />
                 </TransformComponent>
               </div>
 
