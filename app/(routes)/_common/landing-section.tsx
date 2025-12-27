@@ -17,7 +17,6 @@ const LandingSection = () => {
   const [promptText, setPromptText] = useState<string>("");
   const { mutate, isPending } = useCreateProject();
   const userId = user?.id;
-  console.log(userId);
 
   const { data: projects, isLoading, isError } = useGetProjects(userId!);
 
