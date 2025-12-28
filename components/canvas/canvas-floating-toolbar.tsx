@@ -1,6 +1,6 @@
 "use client";
 
-import { CameraIcon, ChevronDown, Palette, Save, Wand2, CopyIcon, DownloadIcon, Edit3, Sparkles, Type, Layout, Image as ImageIcon } from "lucide-react";
+import { CameraIcon, ChevronDown, Palette, Save, Wand2, CopyIcon, DownloadIcon, Edit3, Sparkles, Type, Layout, Image as ImageIcon, Plus, Store } from "lucide-react";
 import { useCanvas } from "@/context/canvas-context";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverTrigger, PopoverContent } from "../ui/popover";
@@ -27,6 +27,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "../ui/tooltip";
+import { ThemeCreatorDialog } from "./theme-creator-dialog";
+import { ThemeMarketplaceDialog } from "./theme-marketplace-dialog";
+import { useCreateCustomTheme } from "@/features/use-custom-theme";
 
 // Quick edit presets for common design modifications
 const QUICK_EDITS = [
@@ -79,12 +82,15 @@ const CanvasFloatingToolbar = ({
   const [isEditPopoverOpen, setIsEditPopoverOpen] = useState(false);
   const [recentPrompts, setRecentPrompts] = useState<string[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [isThemeCreatorOpen, setIsThemeCreatorOpen] = useState(false);
+  const [isMarketplaceOpen, setIsMarketplaceOpen] = useState(false);
 
   const { mutate, isPending } = useGenerateDesignById(projectId);
   const regenerateFrameMutation = useRegenerateFrame(projectId);
 
   const update = useUpdateProject(projectId);
   const duplicate = useDuplicateProject();
+  const createCustomTheme = useCreateCustomTheme();
 
   // Load recent prompts from localStorage on mount
   useEffect(() => {
@@ -150,6 +156,16 @@ const CanvasFloatingToolbar = ({
 
   const handleDuplicate = () => {
     duplicate.mutate(projectId);
+  };
+
+  const handleCreateTheme = async (themeData: {
+    name: string;
+    description: string;
+    colors: Record<string, string>;
+    isPublic: boolean;
+    tags: string[];
+  }) => {
+    await createCustomTheme.mutateAsync(themeData);
   };
 
   // Focus textarea when popover opens
@@ -445,6 +461,31 @@ const CanvasFloatingToolbar = ({
               align="center"
             >
               <ThemeSelector />
+              <Separator className="my-2" />
+              <div className="px-4 pb-3 flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 gap-2"
+                  onClick={() => {
+                    setIsThemeCreatorOpen(true);
+                  }}
+                >
+                  <Plus className="size-4" />
+                  Create Theme
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 gap-2"
+                  onClick={() => {
+                    setIsMarketplaceOpen(true);
+                  }}
+                >
+                  <Store className="size-4" />
+                  Marketplace
+                </Button>
+              </div>
             </PopoverContent>
           </Popover>
 
@@ -509,6 +550,20 @@ const CanvasFloatingToolbar = ({
           </div>
         </div>
       </div>
+
+      {/* Theme Creator Dialog */}
+      <ThemeCreatorDialog
+        open={isThemeCreatorOpen}
+        onOpenChange={setIsThemeCreatorOpen}
+        onCreateTheme={handleCreateTheme}
+      />
+
+      {/* Theme Marketplace Dialog */}
+      <ThemeMarketplaceDialog
+        open={isMarketplaceOpen}
+        onOpenChange={setIsMarketplaceOpen}
+        onSelectTheme={setTheme}
+      />
     </div>
   );
 };

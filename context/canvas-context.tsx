@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useInngestSubscription } from "@inngest/realtime/hooks";
 import { fetchRealtimeSubscriptionToken } from "@/app/action/realtime";
-import { THEME_LIST, ThemeType } from "@/lib/theme";
+import { THEME_LIST, ThemeType, mergeThemes, convertCustomThemeToThemeType } from "@/lib/theme";
 import { FrameType } from "@/types/project";
 import {
   createContext,
@@ -11,6 +11,7 @@ import {
   useEffect,
   useState,
 } from "react";
+import { useCustomThemes } from "@/features/use-custom-theme";
 
 export type LoadingStatusType =
   | "idle"
@@ -72,7 +73,12 @@ export const CanvasProvider = ({
     setSelectedFrameId(null);
   }
 
-  const theme = THEME_LIST.find((t) => t.id === themeId);
+  // Fetch custom themes and merge with built-in themes
+  const { data: customThemesData } = useCustomThemes();
+  const customThemes = customThemesData?.map(convertCustomThemeToThemeType) || [];
+  const allThemes = mergeThemes(customThemes);
+
+  const theme = allThemes.find((t) => t.id === themeId);
   const selectedFrame =
     selectedFrameId && frames.length !== 0
       ? frames.find((f) => f.id === selectedFrameId) || null
@@ -152,7 +158,7 @@ export const CanvasProvider = ({
       value={{
         theme,
         setTheme: setThemeId,
-        themes: THEME_LIST,
+        themes: allThemes,
         frames,
         setFrames,
         selectedFrameId,

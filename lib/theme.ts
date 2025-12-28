@@ -2,6 +2,12 @@ export interface ThemeType {
   id: string;
   name: string;
   style: string;
+  isCustom?: boolean;
+  description?: string;
+  likes?: number;
+  likedBy?: string[];
+  tags?: string[];
+  userId?: string;
 }
 
 export const FONT_VARIABLES = `
@@ -749,4 +755,34 @@ export function parseThemeColors(style: string) {
   const matches = style.matchAll(/--([a-z-]+):\s*([^;]+)/g);
   for (const match of matches) colors[match[1]] = match[2].trim();
   return colors;
+}
+
+// Convert custom theme from DB to ThemeType format
+export function convertCustomThemeToThemeType(customTheme: {
+  id: string;
+  userId: string;
+  name: string;
+  description?: string;
+  style: string;
+  isPublic: boolean;
+  likes: number;
+  likedBy: string[];
+  tags: string[];
+}): ThemeType {
+  return {
+    id: `custom-${customTheme.id}`,
+    name: customTheme.name,
+    style: customTheme.style,
+    isCustom: true,
+    description: customTheme.description,
+    likes: customTheme.likes,
+    likedBy: customTheme.likedBy,
+    tags: customTheme.tags,
+    userId: customTheme.userId,
+  };
+}
+
+// Merge built-in themes with custom themes
+export function mergeThemes(customThemes: ThemeType[]): ThemeType[] {
+  return [...THEME_LIST, ...customThemes];
 }

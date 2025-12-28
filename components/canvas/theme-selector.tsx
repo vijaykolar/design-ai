@@ -3,10 +3,15 @@
 import { useCanvas } from "@/context/canvas-context";
 import { parseThemeColors, ThemeType } from "@/lib/theme";
 import { cn } from "@/lib/utils";
-import { CheckIcon, Palette, Sparkles } from "lucide-react";
+import { CheckIcon, Palette, Sparkles, Crown } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 
 const ThemeSelector = () => {
   const { themes, theme: currentTheme, setTheme } = useCanvas();
+
+  // Separate built-in and custom themes
+  const builtInThemes = themes?.filter(t => !t.isCustom) || [];
+  const customThemes = themes?.filter(t => t.isCustom) || [];
 
   return (
     <div className="flex flex-col max-h-96 ">
@@ -22,8 +27,37 @@ const ThemeSelector = () => {
             </p>
           </div>
         </div>
+
+        {/* Custom Themes Section */}
+        {customThemes.length > 0 && (
+          <>
+            <div className="flex items-center gap-2 mb-3">
+              <Crown className="size-3.5 text-purple-600" />
+              <h4 className="text-sm font-semibold">Custom Themes</h4>
+              <span className="text-xs text-muted-foreground">({customThemes.length})</span>
+            </div>
+            <div className="space-y-2 mb-4">
+              {customThemes.map((theme) => (
+                <ThemeItem
+                  key={theme.id}
+                  theme={theme}
+                  isSelected={currentTheme?.id === theme.id}
+                  onSelect={() => setTheme(theme.id)}
+                />
+              ))}
+            </div>
+            <Separator className="my-4" />
+          </>
+        )}
+
+        {/* Built-in Themes Section */}
+        <div className="flex items-center gap-2 mb-3">
+          <Sparkles className="size-3.5 text-purple-600" />
+          <h4 className="text-sm font-semibold">Built-in Themes</h4>
+          <span className="text-xs text-muted-foreground">({builtInThemes.length})</span>
+        </div>
         <div className="space-y-2">
-          {themes?.map((theme) => (
+          {builtInThemes.map((theme) => (
             <ThemeItem
               key={theme.id}
               theme={theme}
@@ -110,6 +144,13 @@ function ThemeItem({
         <Sparkles
           className="absolute top-2 right-2 size-3 animate-pulse opacity-50"
           style={{ color: color.accent }}
+        />
+      )}
+
+      {/* Custom theme badge */}
+      {theme.isCustom && (
+        <Crown
+          className="absolute top-2 left-2 size-3 text-purple-600 opacity-60"
         />
       )}
     </button>
