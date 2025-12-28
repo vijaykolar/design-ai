@@ -15,6 +15,7 @@ import {
   useUpdateProject,
 } from "@/features/use-project-id";
 import { useDuplicateProject } from "@/features/use-project";
+import { useRegenerateFrame } from "@/features/use-frame";
 import { Spinner } from "../ui/spinner";
 import JSZip from "jszip";
 import { toast } from "sonner";
@@ -64,7 +65,15 @@ const CanvasFloatingToolbar = ({
   isScreenshotting: boolean;
   onScreenshot: () => void;
 }) => {
-  const { themes, theme: currentTheme, setTheme, frames } = useCanvas();
+  const {
+    themes,
+    theme: currentTheme,
+    setTheme,
+    frames,
+    selectedFrameId,
+    selectedFrame,
+    updateFrame,
+  } = useCanvas();
   const [promptText, setPromptText] = useState<string>("");
   const [isBatchExporting, setIsBatchExporting] = useState(false);
   const [isEditPopoverOpen, setIsEditPopoverOpen] = useState(false);
@@ -72,6 +81,7 @@ const CanvasFloatingToolbar = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const { mutate, isPending } = useGenerateDesignById(projectId);
+  const regenerateFrameMutation = useRegenerateFrame(projectId);
 
   const update = useUpdateProject(projectId);
   const duplicate = useDuplicateProject();
@@ -99,13 +109,36 @@ const CanvasFloatingToolbar = ({
     const prompt = customPrompt || promptText;
     if (!prompt) return;
 
-    mutate(prompt);
+    // If a frame is selected, regenerate only that frame
+    if (selectedFrameId && selectedFrame) {
+      regenerateFrameMutation.mutate(
+        { frameId: selectedFrameId, prompt },
+        {
+          onSuccess: () => {
+            updateFrame(selectedFrameId, { isLoading: true });
+            toast.success(`Regenerating "${selectedFrame.title}"`);
+          },
+          onError: () => {
+            updateFrame(selectedFrameId, { isLoading: false });
+          },
+        }
+      );
+    } else {
+      // No frame selected - show warning
+      toast.error("Please select a frame to edit");
+      return;
+    }
+
     savePromptToHistory(prompt);
     setPromptText("");
     setIsEditPopoverOpen(false);
   };
 
   const handleQuickEdit = (preset: typeof QUICK_EDITS[0]) => {
+    if (!selectedFrameId) {
+      toast.error("Please select a frame to edit");
+      return;
+    }
     handleAIGenerate(preset.prompt);
     toast.info(`Applying ${preset.label}...`);
   };
@@ -215,17 +248,23 @@ const CanvasFloatingToolbar = ({
                   <PopoverTrigger asChild>
                     <Button
                       size="icon-sm"
-                      className="px-4  bg-linear-to-r
-                       from-purple-500 to-indigo-600
-                        text-white rounded-2xl
-                        shadow-lg shadow-purple-200/50 cursor-pointer"
+                      className={cn(
+                        "px-4 rounded-2xl shadow-lg cursor-pointer transition-all",
+                        selectedFrameId
+                          ? "bg-linear-to-r from-purple-500 to-indigo-600 text-white shadow-purple-200/50"
+                          : "bg-muted text-muted-foreground shadow-sm hover:bg-muted/80"
+                      )}
                     >
                       <Edit3 className="size-4" />
                     </Button>
                   </PopoverTrigger>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>AI Inline Edit (Cmd+E)</p>
+                  <p>
+                    {selectedFrameId
+                      ? `AI Inline Edit (Cmd+E) - ${selectedFrame?.title}`
+                      : "Select a frame to edit (Cmd+E)"}
+                  </p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -237,9 +276,20 @@ const CanvasFloatingToolbar = ({
             >
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold">AI Design Editor</h3>
+                  <div className="flex flex-col gap-0.5">
+                    <h3 className="text-sm font-semibold">AI Design Editor</h3>
+                    {selectedFrame ? (
+                      <p className="text-xs text-muted-foreground">
+                        Editing: <span className="font-medium text-purple-600 dark:text-purple-400">{selectedFrame.title}</span>
+                      </p>
+                    ) : (
+                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                        Select a frame to edit
+                      </p>
+                    )}
+                  </div>
                   <div className="text-xs text-muted-foreground">
-                    Press Enter to apply
+                    Cmd+Enter
                   </div>
                 </div>
 
@@ -254,7 +304,7 @@ const CanvasFloatingToolbar = ({
                             <Button
                               variant="outline"
                               size="sm"
-                              disabled={isPending}
+                              disabled={!selectedFrameId || regenerateFrameMutation.isPending}
                               onClick={() => handleQuickEdit(preset)}
                               className="flex flex-col h-auto py-2 px-2 gap-1"
                             >
@@ -319,7 +369,7 @@ const CanvasFloatingToolbar = ({
                 )}
 
                 <Button
-                  disabled={isPending || !promptText.trim()}
+                  disabled={!selectedFrameId || regenerateFrameMutation.isPending || !promptText.trim()}
                   className="w-full
                     bg-linear-to-r
                    from-purple-500 to-indigo-600
@@ -328,15 +378,15 @@ const CanvasFloatingToolbar = ({
                   "
                   onClick={() => handleAIGenerate()}
                 >
-                  {isPending ? (
+                  {regenerateFrameMutation.isPending ? (
                     <>
                       <Spinner className="mr-2" />
-                      Generating...
+                      Regenerating...
                     </>
                   ) : (
                     <>
                       <Wand2 className="size-4 mr-2" />
-                      Apply Changes
+                      {selectedFrameId ? 'Apply Changes' : 'Select a Frame'}
                     </>
                   )}
                 </Button>
