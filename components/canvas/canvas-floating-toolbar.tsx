@@ -395,12 +395,15 @@ const CanvasFloatingToolbar = ({
           </Popover>
 
           <Popover>
-            <PopoverTrigger>
-              <div className="flex items-center gap-2 px-3 py-2">
-                <Palette className="size-4" />
+            <PopoverTrigger asChild>
+              <button className="flex items-center gap-2.5 px-3 py-2 hover:bg-accent/50 rounded-full transition-colors group">
+                <div className="p-1.5 rounded-lg bg-linear-to-br from-purple-500/10 to-pink-500/10 group-hover:from-purple-500/20 group-hover:to-pink-500/20 transition-colors">
+                  <Palette className="size-4 text-purple-600" />
+                </div>
                 <div className="flex gap-1.5">
                   {themes?.slice(0, 4)?.map((theme, index) => {
                     const color = parseThemeColors(theme.style);
+                    const isActive = currentTheme?.id === theme.id;
                     return (
                       <div
                         role="button"
@@ -410,31 +413,36 @@ const CanvasFloatingToolbar = ({
                           setTheme(theme.id);
                         }}
                         className={cn(
-                          `w-6.5 h-6.5 rounded-full cursor-pointer
+                          `w-7 h-7 rounded-full cursor-pointer
+                           transition-all duration-200 hover:scale-110
+                           shadow-sm border-2 border-white
                            `,
-                          currentTheme?.id === theme.id &&
-                            "ring-1 ring-offset-1"
+                          isActive &&
+                            "ring-2 ring-offset-2 scale-110 shadow-md"
                         )}
                         style={{
                           background: `linear-gradient(135deg, ${color.primary}, ${color.accent})`,
+                          boxShadow: isActive ? `0 0 0 2px ${color.primary}40` : undefined,
                         }}
                       />
                     );
                   })}
                 </div>
                 <div
-                  className="flex items-center gap-1 text-sm
+                  className="flex items-center gap-1 text-sm font-medium text-muted-foreground
+                  group-hover:text-foreground transition-colors
                 "
                 >
-                  +{themes?.length - 4} more
+                  +{themes?.length - 4}
                   <ChevronDown className="size-4" />
                 </div>
-              </div>
+              </button>
             </PopoverTrigger>
             <PopoverContent
               className="px-0 rounded-xl
-            shadow border
+            shadow-lg border
             "
+              align="center"
             >
               <ThemeSelector />
             </PopoverContent>
