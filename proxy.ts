@@ -1,6 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { withAuth } from "@kinde-oss/kinde-auth-nextjs/middleware";
 
-export default withAuth(async function middleware(req) {}, {
+export default withAuth(async function middleware(req: any) {}, {
   // Middleware still runs on all routes, but doesn't protect the blog route
   isReturnToCurrentPage: true,
   publicPaths: ["/", "/api/inngest"],
