@@ -1,6 +1,6 @@
 "use client";
 
-import { CameraIcon, ChevronDown, Palette, Save, Wand2 } from "lucide-react";
+import { CameraIcon, ChevronDown, Palette, Save, Wand2, CopyIcon, DownloadIcon } from "lucide-react";
 import { useCanvas } from "@/context/canvas-context";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverTrigger, PopoverContent } from "../ui/popover";
@@ -14,7 +14,11 @@ import {
   useGenerateDesignById,
   useUpdateProject,
 } from "@/features/use-project-id";
+import { useDuplicateProject } from "@/features/use-project";
 import { Spinner } from "../ui/spinner";
+import JSZip from "jszip";
+import { toast } from "sonner";
+import { getHTMLWrapper } from "@/lib/frame-wrapper";
 
 const CanvasFloatingToolbar = ({
   projectId,
@@ -25,12 +29,14 @@ const CanvasFloatingToolbar = ({
   isScreenshotting: boolean;
   onScreenshot: () => void;
 }) => {
-  const { themes, theme: currentTheme, setTheme } = useCanvas();
+  const { themes, theme: currentTheme, setTheme, frames } = useCanvas();
   const [promptText, setPromptText] = useState<string>("");
+  const [isBatchExporting, setIsBatchExporting] = useState(false);
 
   const { mutate, isPending } = useGenerateDesignById(projectId);
 
   const update = useUpdateProject(projectId);
+  const duplicate = useDuplicateProject();
 
   const handleAIGenerate = () => {
     if (!promptText) return;
@@ -40,6 +46,52 @@ const CanvasFloatingToolbar = ({
   const handleUpdate = () => {
     if (!currentTheme) return;
     update.mutate(currentTheme.id);
+  };
+
+  const handleDuplicate = () => {
+    duplicate.mutate(projectId);
+  };
+
+  const handleBatchExport = async () => {
+    if (!frames || frames.length === 0) {
+      toast.error("No frames to export");
+      return;
+    }
+
+    setIsBatchExporting(true);
+    try {
+      const zip = new JSZip();
+
+      // Add each frame as an HTML file to the zip
+      frames.forEach((frame, index) => {
+        const fullHtml = getHTMLWrapper(
+          frame.htmlContent,
+          frame.title,
+          currentTheme?.style,
+          frame.id
+        );
+        const fileName = `${index + 1}-${frame.title.replace(/\s+/g, "-").toLowerCase()}.html`;
+        zip.file(fileName, fullHtml);
+      });
+
+      // Generate the zip file
+      const blob = await zip.generateAsync({ type: "blob" });
+
+      // Download the zip file
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `project-${projectId}-${Date.now()}.zip`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+
+      toast.success(`Exported ${frames.length} frames successfully`);
+    } catch (error) {
+      console.error("Batch export failed:", error);
+      toast.error("Failed to export frames");
+    } finally {
+      setIsBatchExporting(false);
+    }
   };
 
   return (
@@ -155,6 +207,32 @@ const CanvasFloatingToolbar = ({
                 <Spinner />
               ) : (
                 <CameraIcon className="size-4.5" />
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              size="icon-sm"
+              className="rounded-full cursor-pointer"
+              disabled={isBatchExporting}
+              onClick={handleBatchExport}
+            >
+              {isBatchExporting ? (
+                <Spinner />
+              ) : (
+                <DownloadIcon className="size-4" />
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              size="icon-sm"
+              className="rounded-full cursor-pointer"
+              disabled={duplicate.isPending}
+              onClick={handleDuplicate}
+            >
+              {duplicate.isPending ? (
+                <Spinner />
+              ) : (
+                <CopyIcon className="size-4" />
               )}
             </Button>
             <Button

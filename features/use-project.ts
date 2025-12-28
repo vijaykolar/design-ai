@@ -34,3 +34,21 @@ export const useGetProjects = (userId: string) => {
     // cacheTime: 1000 * 60 * 10, // 10 minutes
   });
 };
+
+export const useDuplicateProject = () => {
+  const router = useRouter();
+  return useMutation({
+    mutationFn: async (projectId: string) =>
+      await axios
+        .post(`/api/project/${projectId}/duplicate`)
+        .then((res) => res.data),
+    onSuccess: (data) => {
+      toast.success("Project duplicated successfully");
+      router.push(`/project/${data?.project?.id}`);
+    },
+    onError: (error) => {
+      console.error("Duplicate project failed", error);
+      toast.error("Failed to duplicate project");
+    },
+  });
+};

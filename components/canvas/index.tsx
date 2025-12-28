@@ -43,6 +43,7 @@ const Canvas = ({
   const [isSaving, setIsSaving] = useState(false);
 
   const canvasRootRef = useRef<HTMLDivElement>(null);
+  const transformWrapperRef = useRef<any>(null);
 
   const saveThumbnailToProject = useCallback(
     async (projectId: string | null) => {
@@ -76,6 +77,85 @@ const Canvas = ({
       saveThumbnailToProject(projectId);
     }
   }, [loadingStatus, projectId, saveThumbnailToProject]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore keyboard events when typing in input fields
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
+      // Space: Toggle between SELECT and HAND tool modes
+      if (e.code === "Space") {
+        e.preventDefault();
+        setToolMode((prev) =>
+          prev === TOOL_MODE_ENUM.SELECT
+            ? TOOL_MODE_ENUM.HAND
+            : TOOL_MODE_ENUM.SELECT
+        );
+        toast.info(
+          toolMode === TOOL_MODE_ENUM.SELECT ? "Hand Tool" : "Select Tool",
+          { duration: 1000 }
+        );
+      }
+
+      // Escape: Deselect frame
+      if (e.code === "Escape") {
+        e.preventDefault();
+        setSelectedFrameId(null);
+      }
+
+      // Delete/Backspace: Delete selected frame (would need to add this handler)
+      // Note: We don't implement this here as it would require frame deletion logic
+
+      // +/=: Zoom in
+      if ((e.key === "+" || e.key === "=") && !e.shiftKey && !e.ctrlKey) {
+        e.preventDefault();
+        transformWrapperRef.current?.zoomIn();
+      }
+
+      // -: Zoom out
+      if (e.key === "-" && !e.ctrlKey) {
+        e.preventDefault();
+        transformWrapperRef.current?.zoomOut();
+      }
+
+      // 0: Reset zoom
+      if (e.key === "0" && !e.ctrlKey) {
+        e.preventDefault();
+        transformWrapperRef.current?.resetTransform();
+      }
+
+      // S: Take screenshot
+      if (e.key === "s" && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        handleCanvasScreenshot();
+      }
+
+      // H: Toggle to Hand tool
+      if (e.key === "h" && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        setToolMode(TOOL_MODE_ENUM.HAND);
+        toast.info("Hand Tool", { duration: 1000 });
+      }
+
+      // V: Toggle to Select tool
+      if (e.key === "v" && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        setToolMode(TOOL_MODE_ENUM.SELECT);
+        toast.info("Select Tool", { duration: 1000 });
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [toolMode, setSelectedFrameId, handleCanvasScreenshot]);
 
   const onOpenHtmlDialog = () => {
     setOpenHtmlDialog(true);
@@ -187,7 +267,9 @@ const Canvas = ({
             setCurrentScale(ref.state.scale);
           }}
         >
-          {({ zoomIn, zoomOut }) => (
+          {({ zoomIn, zoomOut, resetTransform }) => {
+            transformWrapperRef.current = { zoomIn, zoomOut, resetTransform };
+            return (
             <>
               <div
                 ref={canvasRootRef}
@@ -262,7 +344,8 @@ const Canvas = ({
                 setToolMode={setToolMode}
               />
             </>
-          )}
+            );
+          }}
         </TransformWrapper>
       </div>
 
