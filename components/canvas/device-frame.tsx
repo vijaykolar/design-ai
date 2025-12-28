@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import DeviceFrameToolbar from "./device-frame-toolbar";
 import DeviceFrameSkeleton from "./device-frame-skeleton";
+import { ExportDialog } from "./export-dialog";
 
 import { useRegenerateFrame, useDeleteFrame } from "@/features/use-frame";
 
@@ -48,6 +49,7 @@ const DeviceFrame = ({
     height: minHeight,
   });
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
 
   const regenerateMutation = useRegenerateFrame(projectId);
   const deleteMutation = useDeleteFrame(projectId);
@@ -141,6 +143,10 @@ const DeviceFrame = ({
     }
   }, [fullHtml, title]);
 
+  const handleOpenExportDialog = useCallback(() => {
+    setIsExportDialogOpen(true);
+  }, []);
+
   return (
     <Rnd
       default={{
@@ -210,6 +216,7 @@ const DeviceFrame = ({
           onDeleteFrame={handleDeleteFrame}
           onOpenHtmlDialog={onOpenHtmlDialog}
           onExportCode={handleExportCode}
+          onOpenExportDialog={handleOpenExportDialog}
         />
 
         <div
@@ -251,6 +258,13 @@ const DeviceFrame = ({
           </div>
         </div>
       </div>
+
+      <ExportDialog
+        open={isExportDialogOpen}
+        onOpenChange={setIsExportDialogOpen}
+        htmlContent={html}
+        frameTitle={title}
+      />
     </Rnd>
   );
 };
