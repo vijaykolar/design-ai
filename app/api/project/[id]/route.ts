@@ -132,3 +132,55 @@ export async function PATCH(
     );
   }
 }
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const session = await getKindeServerSession();
+    const user = await session.getUser();
+
+    if (!user) throw new Error("Unauthorized");
+
+    const userId = user.id;
+
+    // Verify the project belongs to the user before deleting
+    const project = await prisma.project.findFirst({
+      where: { id, userId },
+    });
+
+    if (!project) {
+      return NextResponse.json(
+        {
+          error: "Project not found",
+        },
+        { status: 404 }
+      );
+    }
+
+    // Delete frames first (MongoDB doesn't support cascade delete)
+    await prisma.frame.deleteMany({
+      where: { projectId: id },
+    });
+
+    // Delete the project
+    await prisma.project.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: "Project deleted successfully",
+    });
+  } catch (error) {
+    console.log("Error occurred ", error);
+    return NextResponse.json(
+      {
+        error: "Failed to delete project",
+      },
+      { status: 500 }
+    );
+  }
+}

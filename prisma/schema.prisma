@@ -31,8 +31,43 @@ model Frame {
   title       String
   htmlContent String
   projectId   String @db.ObjectId
+  x           Int    @default(0)
+  y           Int    @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   project   Project  @relation(fields: [projectId], references: [id])
+}
+
+model CustomTheme {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String
+  name        String
+  description String?
+  style       String
+  isPublic    Boolean  @default(false)
+  likes       Int      @default(0)
+  likedBy     String[] @default([])
+  tags        String[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([isPublic])
+}
+
+model Version {
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  projectId   String  @db.ObjectId
+  userId      String
+  name        String?
+  description String?
+  snapshot    String
+  action      String
+
+  createdAt DateTime @default(now())
+
+  @@index([projectId])
+  @@index([userId])
 }

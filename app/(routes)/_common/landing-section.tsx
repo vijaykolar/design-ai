@@ -4,13 +4,29 @@ import { formatDistanceToNow } from "date-fns";
 import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion";
 import PromptInput from "@/components/prompt-input";
 import Header from "./header";
-import { useCreateProject, useGetProjects } from "@/features/use-project";
+import { useCreateProject, useGetProjects, useDeleteProject, useBatchDeleteProjects } from "@/features/use-project";
 import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
 import { Spinner } from "@/components/ui/spinner";
 import { useRouter } from "next/navigation";
-import { FolderOpenDotIcon } from "lucide-react";
+import { FolderOpenDotIcon, MoreVertical, Trash2, CheckCircle2 } from "lucide-react";
 import Image from "next/image";
 import { ProjectType } from "@/types/project";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { useQueryClient } from "@tanstack/react-query";
 
 const LandingSection = () => {
   const { user } = useKindeBrowserClient();
@@ -19,6 +35,8 @@ const LandingSection = () => {
   const userId = user?.id;
 
   const { data: projects, isLoading, isError } = useGetProjects(userId!);
+  const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set());
+  const [showBatchDeleteDialog, setShowBatchDeleteDialog] = useState(false);
 
   const suggestions = [
     {
@@ -60,6 +78,23 @@ const LandingSection = () => {
   const handleSubmit = () => {
     if (!promptText) return;
     mutate(promptText);
+  };
+
+  const toggleProjectSelection = (projectId: string) => {
+    setSelectedProjects((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(projectId)) {
+        newSet.delete(projectId);
+      } else {
+        newSet.add(projectId);
+      }
+      console.log('Selected projects:', Array.from(newSet)); // Debug log
+      return newSet;
+    });
+  };
+
+  const clearSelection = () => {
+    setSelectedProjects(new Set());
   };
 
   return (
@@ -151,13 +186,38 @@ const LandingSection = () => {
           <div className="mx-auto max-w-3xl">
             {userId && (
               <div>
-                <h1
-                  className="font-medium text-xl
-              tracking-tight
-              "
-                >
-                  Recent Projects
-                </h1>
+                <div className="flex items-center justify-between mb-3">
+                  <h1
+                    className="font-medium text-xl
+                  tracking-tight
+                  "
+                  >
+                    Recent Projects {projects?.data?.length ? `(${projects.data.length})` : ''}
+                  </h1>
+
+                  {selectedProjects.size > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">
+                        {selectedProjects.size} selected
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={clearSelection}
+                      >
+                        Clear
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => setShowBatchDeleteDialog(true)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Delete Selected
+                      </Button>
+                    </div>
+                  )}
+                </div>
 
                 {isLoading ? (
                   <div
@@ -174,7 +234,12 @@ const LandingSection = () => {
                     "
                   >
                     {projects?.data?.map((project: ProjectType) => (
-                      <ProjectCard key={project.id} project={project} />
+                      <ProjectCard
+                        key={project.id}
+                        project={project}
+                        isSelected={selectedProjects.has(project.id)}
+                        onToggleSelect={toggleProjectSelection}
+                      />
                     ))}
                   </div>
                 )}
@@ -183,14 +248,36 @@ const LandingSection = () => {
 
             {isError && <p className="text-red-500">Failed to load projects</p>}
           </div>
+
+          {/* Batch Delete Dialog */}
+          <BatchDeleteDialog
+            open={showBatchDeleteDialog}
+            onOpenChange={setShowBatchDeleteDialog}
+            selectedCount={selectedProjects.size}
+            selectedProjects={selectedProjects}
+            onSuccess={clearSelection}
+          />
         </div>
       </div>
     </div>
   );
 };
 
-const ProjectCard = memo(({ project }: { project: ProjectType }) => {
+const ProjectCard = memo(({
+  project,
+  isSelected,
+  onToggleSelect
+}: {
+  project: ProjectType;
+  isSelected: boolean;
+  onToggleSelect: (id: string) => void;
+}) => {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const { user } = useKindeBrowserClient();
+  const { mutate: deleteProject, isPending: isDeleting } = useDeleteProject();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
   const createdAtDate = new Date(project.createdAt);
   const timeAgo = formatDistanceToNow(createdAtDate, { addSuffix: true });
   const thumbnail = project?.thumbnail || null;
@@ -199,13 +286,37 @@ const ProjectCard = memo(({ project }: { project: ProjectType }) => {
     router.push(`/project/${project.id}`);
   };
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Check if Ctrl (Windows/Linux) or Cmd (Mac) key is pressed
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      onToggleSelect(project.id);
+    } else {
+      onRoute();
+    }
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowDeleteDialog(true);
+  };
+
+  const handleConfirmDelete = () => {
+    deleteProject(project.id, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["projects", user?.id] });
+        setShowDeleteDialog(false);
+      },
+    });
+  };
+
   return (
     <div
-      role="button"
-      className="w-full flex flex-col border rounded-xl cursor-pointer
-    hover:shadow-md overflow-hidden
-    "
-      onClick={onRoute}
+      className={`w-full flex flex-col border rounded-xl cursor-pointer
+    hover:shadow-md overflow-hidden relative group transition-all
+    ${isSelected ? 'ring-2 ring-primary border-primary' : ''}
+    `}
+      onClick={handleCardClick}
     >
       <div
         className="h-40 bg-[#eee] relative overflow-hidden
@@ -231,6 +342,37 @@ const ProjectCard = memo(({ project }: { project: ProjectType }) => {
             <FolderOpenDotIcon />
           </div>
         )}
+
+        {/* Selection Indicator */}
+        {isSelected && (
+          <div className="absolute top-2 left-2 bg-primary text-primary-foreground rounded-full p-1">
+            <CheckCircle2 className="h-5 w-5" />
+          </div>
+        )}
+
+        {/* Vertical Menu */}
+        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className="p-1.5 rounded-md bg-background/80 backdrop-blur-sm
+              hover:bg-background border border-border shadow-sm
+              focus:outline-none focus:ring-2 focus:ring-primary/20"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <MoreVertical className="h-4 w-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={handleDeleteClick}
+                disabled={isDeleting}
+              >
+                <Trash2 className="h-4 w-4" />
+                <span>Delete</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       <div className="p-4 flex flex-col">
@@ -242,10 +384,107 @@ const ProjectCard = memo(({ project }: { project: ProjectType }) => {
         </h3>
         <p className="text-xs text-muted-foreground">{timeAgo}</p>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent onClick={(e) => e.stopPropagation()}>
+          <DialogHeader>
+            <DialogTitle>Delete Project</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete "{project.name}"? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowDeleteDialog(false);
+              }}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleConfirmDelete();
+              }}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 });
 
 ProjectCard.displayName = "ProjectCard";
+
+const BatchDeleteDialog = ({
+  open,
+  onOpenChange,
+  selectedCount,
+  selectedProjects,
+  onSuccess,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  selectedCount: number;
+  selectedProjects: Set<string>;
+  onSuccess: () => void;
+}) => {
+  const queryClient = useQueryClient();
+  const { user } = useKindeBrowserClient();
+  const { mutate: batchDelete, isPending } = useBatchDeleteProjects();
+
+  const handleConfirmDelete = () => {
+    const projectIds = Array.from(selectedProjects);
+    console.log('Deleting projects:', projectIds); // Debug log
+    batchDelete(projectIds, {
+      onSuccess: () => {
+        console.log('Successfully deleted projects'); // Debug log
+        queryClient.invalidateQueries({ queryKey: ["projects", user?.id] });
+        onOpenChange(false);
+        onSuccess();
+      },
+      onError: (error) => {
+        console.error('Error deleting projects:', error);
+      },
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Delete Projects</DialogTitle>
+          <DialogDescription>
+            Are you sure you want to delete {selectedCount} project{selectedCount > 1 ? 's' : ''}? This action cannot be undone.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isPending}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={handleConfirmDelete}
+            disabled={isPending}
+          >
+            {isPending ? "Deleting..." : "Delete"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 export default LandingSection;

@@ -51,6 +51,7 @@ type PropsType = {
   onRegenerate?: (prompt: string) => void;
   onDeleteFrame?: () => void;
   onExportCode?: () => void;
+  onOpenExportDialog?: () => void;
 };
 const DeviceFrameToolbar = ({
   title,
@@ -65,6 +66,7 @@ const DeviceFrameToolbar = ({
   onRegenerate,
   onDeleteFrame,
   onExportCode,
+  onOpenExportDialog,
 }: PropsType) => {
   const [promptValue, setPromptValue] = useState("");
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
@@ -228,14 +230,22 @@ const DeviceFrameToolbar = ({
                   <TooltipContent>More options</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-              <DropdownMenuContent align="end" className="w-40 rounded-md p-0!">
+              <DropdownMenuContent align="end" className="w-48 rounded-md p-0!">
                 <DropdownMenuItem
                   disabled={disabled}
                   onClick={onExportCode}
                   className="cursor-pointer"
                 >
                   <FileCodeIcon className="size-4" />
-                  Export Code
+                  Export HTML
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={disabled}
+                  onClick={onOpenExportDialog}
+                  className="cursor-pointer"
+                >
+                  <CodeIcon className="size-4" />
+                  Export to Framework
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   disabled={disabled || isDeleting}
