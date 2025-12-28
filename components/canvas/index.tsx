@@ -273,6 +273,7 @@ const Canvas = ({
               <>
                 <div
                   ref={canvasRootRef}
+                  data-canvas-background="true"
                   className={cn(
                     `absolute inset-0 w-full h-full bg-[#eee]
                   dark:bg-[#242423] p-3

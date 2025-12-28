@@ -62,13 +62,16 @@ const CanvasControls = ({
   };
 
   const toggleGrid = () => {
-    setShowGrid(!showGrid);
+    const newShowGrid = !showGrid;
+    setShowGrid(newShowGrid);
+
     // Toggle grid visibility on canvas background
-    const canvas = document.querySelector('[style*="radial-gradient"]') as HTMLElement;
+    const canvas = document.querySelector('[data-canvas-background="true"]') as HTMLElement;
     if (canvas) {
-      canvas.style.backgroundImage = showGrid
-        ? 'none'
-        : 'radial-gradient(circle, var(--primary) 1px, transparent 1px)';
+      canvas.style.backgroundImage = newShowGrid
+        ? 'radial-gradient(circle, var(--primary) 1px, transparent 1px)'
+        : 'none';
+      canvas.style.backgroundSize = newShowGrid ? '20px 20px' : '';
     }
   };
 
