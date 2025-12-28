@@ -125,6 +125,22 @@ const DeviceFrame = ({
     deleteMutation.mutate(frameId);
   }, [frameId, deleteMutation]);
 
+  const handleExportCode = useCallback(() => {
+    try {
+      const blob = new Blob([fullHtml], { type: "text/html" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${title.replace(/\s+/g, "-").toLowerCase()}-${Date.now()}.html`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+      toast.success("Code exported successfully");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to export code");
+    }
+  }, [fullHtml, title]);
+
   return (
     <Rnd
       default={{
@@ -193,6 +209,7 @@ const DeviceFrame = ({
           onRegenerate={handleRegenerate}
           onDeleteFrame={handleDeleteFrame}
           onOpenHtmlDialog={onOpenHtmlDialog}
+          onExportCode={handleExportCode}
         />
 
         <div

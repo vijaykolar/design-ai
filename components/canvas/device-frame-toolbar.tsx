@@ -15,6 +15,7 @@ import {
   Send,
   Wand2,
   Wand2Icon,
+  FileCodeIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { Separator } from "../ui/separator";
@@ -49,6 +50,7 @@ type PropsType = {
   onDownloadPng?: () => void;
   onRegenerate?: (prompt: string) => void;
   onDeleteFrame?: () => void;
+  onExportCode?: () => void;
 };
 const DeviceFrameToolbar = ({
   title,
@@ -62,6 +64,7 @@ const DeviceFrameToolbar = ({
   onDownloadPng,
   onRegenerate,
   onDeleteFrame,
+  onExportCode,
 }: PropsType) => {
   const [promptValue, setPromptValue] = useState("");
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
@@ -225,7 +228,15 @@ const DeviceFrameToolbar = ({
                   <TooltipContent>More options</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-              <DropdownMenuContent align="end" className="w-32 rounded-md p-0!">
+              <DropdownMenuContent align="end" className="w-40 rounded-md p-0!">
+                <DropdownMenuItem
+                  disabled={disabled}
+                  onClick={onExportCode}
+                  className="cursor-pointer"
+                >
+                  <FileCodeIcon className="size-4" />
+                  Export Code
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   disabled={disabled || isDeleting}
                   onClick={onDeleteFrame}

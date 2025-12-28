@@ -43,6 +43,7 @@ const Canvas = ({
   const [isSaving, setIsSaving] = useState(false);
 
   const canvasRootRef = useRef<HTMLDivElement>(null);
+  const transformWrapperRef = useRef<any>(null);
 
   const saveThumbnailToProject = useCallback(
     async (projectId: string | null) => {
@@ -76,38 +77,6 @@ const Canvas = ({
       saveThumbnailToProject(projectId);
     }
   }, [loadingStatus, projectId, saveThumbnailToProject]);
-
-  const onOpenHtmlDialog = () => {
-    setOpenHtmlDialog(true);
-  };
-
-  function getCanvasHtmlContent() {
-    const el = canvasRootRef.current;
-    if (!el) {
-      toast.error("Canvas element not found");
-      return null;
-    }
-    let styles = "";
-    for (const sheet of document.styleSheets) {
-      try {
-        for (const rule of sheet.cssRules) styles += rule.cssText;
-      } catch {}
-    }
-
-    return {
-      element: el,
-      html: `
-         <!DOCTYPE html>
-          <html>
-          <head>
-            <meta charset="UTF-8">
-            <style>body{margin:0}*{box-sizing:border-box}${styles}</style>
-          </head>
-          <body>${el.outerHTML}</body>
-          </html>
-      `,
-    };
-  }
 
   const handleCanvasScreenshot = useCallback(async () => {
     try {
@@ -148,6 +117,117 @@ const Canvas = ({
     }
   }, [projectName, setSelectedFrameId]);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore keyboard events when typing in input fields
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
+      // Space: Toggle between SELECT and HAND tool modes
+      if (e.code === "Space") {
+        e.preventDefault();
+        setToolMode((prev) =>
+          prev === TOOL_MODE_ENUM.SELECT
+            ? TOOL_MODE_ENUM.HAND
+            : TOOL_MODE_ENUM.SELECT
+        );
+        toast.info(
+          toolMode === TOOL_MODE_ENUM.SELECT ? "Hand Tool" : "Select Tool",
+          { duration: 1000 }
+        );
+      }
+
+      // Escape: Deselect frame
+      if (e.code === "Escape") {
+        e.preventDefault();
+        setSelectedFrameId(null);
+      }
+
+      // Delete/Backspace: Delete selected frame (would need to add this handler)
+      // Note: We don't implement this here as it would require frame deletion logic
+
+      // +/=: Zoom in
+      if ((e.key === "+" || e.key === "=") && !e.shiftKey && !e.ctrlKey) {
+        e.preventDefault();
+        transformWrapperRef.current?.zoomIn();
+      }
+
+      // -: Zoom out
+      if (e.key === "-" && !e.ctrlKey) {
+        e.preventDefault();
+        transformWrapperRef.current?.zoomOut();
+      }
+
+      // 0: Reset zoom
+      if (e.key === "0" && !e.ctrlKey) {
+        e.preventDefault();
+        transformWrapperRef.current?.resetTransform();
+      }
+
+      // S: Take screenshot
+      if (e.key === "s" && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        handleCanvasScreenshot();
+      }
+
+      // H: Toggle to Hand tool
+      if (e.key === "h" && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        setToolMode(TOOL_MODE_ENUM.HAND);
+        toast.info("Hand Tool", { duration: 1000 });
+      }
+
+      // V: Toggle to Select tool
+      if (e.key === "v" && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        setToolMode(TOOL_MODE_ENUM.SELECT);
+        toast.info("Select Tool", { duration: 1000 });
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [toolMode, setSelectedFrameId, handleCanvasScreenshot]);
+
+  const onOpenHtmlDialog = () => {
+    setOpenHtmlDialog(true);
+  };
+
+  function getCanvasHtmlContent() {
+    const el = canvasRootRef.current;
+    if (!el) {
+      toast.error("Canvas element not found");
+      return null;
+    }
+    let styles = "";
+    for (const sheet of document.styleSheets) {
+      try {
+        for (const rule of sheet.cssRules) styles += rule.cssText;
+      } catch {}
+    }
+
+    return {
+      element: el,
+      html: `
+         <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="UTF-8">
+            <style>body{margin:0}*{box-sizing:border-box}${styles}</style>
+          </head>
+          <body>${el.outerHTML}</body>
+          </html>
+      `,
+    };
+  }
+
   const currentStatus = isSaving
     ? "finalizing"
     : isPending && (loadingStatus === null || loadingStatus === "idle")
@@ -187,82 +267,85 @@ const Canvas = ({
             setCurrentScale(ref.state.scale);
           }}
         >
-          {({ zoomIn, zoomOut }) => (
-            <>
-              <div
-                ref={canvasRootRef}
-                className={cn(
-                  `absolute inset-0 w-full h-full bg-[#eee]
+          {({ zoomIn, zoomOut, resetTransform }) => {
+            transformWrapperRef.current = { zoomIn, zoomOut, resetTransform };
+            return (
+              <>
+                <div
+                  ref={canvasRootRef}
+                  className={cn(
+                    `absolute inset-0 w-full h-full bg-[#eee]
                   dark:bg-[#242423] p-3
               `,
-                  toolMode === TOOL_MODE_ENUM.HAND
-                    ? "cursor-grab active:cursor-grabbing"
-                    : "cursor-default"
-                )}
-                style={{
-                  backgroundImage:
-                    "radial-gradient(circle, var(--primary) 1px, transparent 1px)",
-                  backgroundSize: "20px 20px",
-                }}
-              >
-                <TransformComponent
-                  wrapperStyle={{
-                    width: "100%",
-                    height: "100%",
-                    overflow: "unset",
-                  }}
-                  contentStyle={{
-                    width: "100%",
-                    height: "100%",
+                    toolMode === TOOL_MODE_ENUM.HAND
+                      ? "cursor-grab active:cursor-grabbing"
+                      : "cursor-default"
+                  )}
+                  style={{
+                    backgroundImage:
+                      "radial-gradient(circle, var(--primary) 1px, transparent 1px)",
+                    backgroundSize: "20px 20px",
                   }}
                 >
-                  <div>
-                    {frames?.map((frame, index: number) => {
-                      const baseX = 100 + index * 480;
-                      const y = 100;
+                  <TransformComponent
+                    wrapperStyle={{
+                      width: "100%",
+                      height: "100%",
+                      overflow: "unset",
+                    }}
+                    contentStyle={{
+                      width: "100%",
+                      height: "100%",
+                    }}
+                  >
+                    <div>
+                      {frames?.map((frame, index: number) => {
+                        const baseX = 100 + index * 480;
+                        const y = 100;
 
-                      // if (frame.isLoading) {
-                      //   return (
-                      //     <DeviceFrameSkeleton
-                      //       key={index}
-                      //       style={{
-                      //         transform: `translate(${baseX}px, ${y}px)`,
-                      //       }}
-                      //     />
-                      //   );
-                      // }
-                      return (
-                        <DeviceFrame
-                          key={frame.id}
-                          frameId={frame.id}
-                          projectId={projectId}
-                          title={frame.title}
-                          html={frame.htmlContent}
-                          isLoading={frame.isLoading}
-                          scale={currentScale}
-                          initialPosition={{
-                            x: baseX,
-                            y,
-                          }}
-                          toolMode={toolMode}
-                          theme_style={theme?.style}
-                          onOpenHtmlDialog={onOpenHtmlDialog}
-                        />
-                      );
-                    })}
-                  </div>
-                </TransformComponent>
-              </div>
+                        // if (frame.isLoading) {
+                        //   return (
+                        //     <DeviceFrameSkeleton
+                        //       key={index}
+                        //       style={{
+                        //         transform: `translate(${baseX}px, ${y}px)`,
+                        //       }}
+                        //     />
+                        //   );
+                        // }
+                        return (
+                          <DeviceFrame
+                            key={frame.id}
+                            frameId={frame.id}
+                            projectId={projectId}
+                            title={frame.title}
+                            html={frame.htmlContent}
+                            isLoading={frame.isLoading}
+                            scale={currentScale}
+                            initialPosition={{
+                              x: baseX,
+                              y,
+                            }}
+                            toolMode={toolMode}
+                            theme_style={theme?.style}
+                            onOpenHtmlDialog={onOpenHtmlDialog}
+                          />
+                        );
+                      })}
+                    </div>
+                  </TransformComponent>
+                </div>
 
-              <CanvasControls
-                zoomIn={zoomIn}
-                zoomOut={zoomOut}
-                zoomPercent={zoomPercent}
-                toolMode={toolMode}
-                setToolMode={setToolMode}
-              />
-            </>
-          )}
+                <CanvasControls
+                  zoomIn={zoomIn}
+                  zoomOut={zoomOut}
+                  zoomPercent={zoomPercent}
+                  toolMode={toolMode}
+                  setToolMode={setToolMode}
+                />
+              </>
+            );
+          }}
         </TransformWrapper>
       </div>
 
