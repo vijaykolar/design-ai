@@ -52,3 +52,38 @@ export const useDuplicateProject = () => {
     },
   });
 };
+
+export const useDeleteProject = () => {
+  return useMutation({
+    mutationFn: async (projectId: string) =>
+      await axios
+        .delete(`/api/project/${projectId}`)
+        .then((res) => res.data),
+    onSuccess: () => {
+      toast.success("Project deleted successfully");
+    },
+    onError: (error) => {
+      console.error("Delete project failed", error);
+      toast.error("Failed to delete project");
+    },
+  });
+};
+
+export const useBatchDeleteProjects = () => {
+  return useMutation({
+    mutationFn: async (projectIds: string[]) => {
+      const deletePromises = projectIds.map((id) =>
+        axios.delete(`/api/project/${id}`)
+      );
+      return await Promise.all(deletePromises);
+    },
+    onSuccess: (_, projectIds) => {
+      const count = projectIds.length;
+      toast.success(`Successfully deleted ${count} project${count > 1 ? 's' : ''}`);
+    },
+    onError: (error) => {
+      console.error("Batch delete failed", error);
+      toast.error("Failed to delete some projects");
+    },
+  });
+};
