@@ -339,6 +339,7 @@ const Canvas = ({
                 <CanvasControls
                   zoomIn={zoomIn}
                   zoomOut={zoomOut}
+                  resetZoom={resetTransform}
                   zoomPercent={zoomPercent}
                   toolMode={toolMode}
                   setToolMode={setToolMode}
