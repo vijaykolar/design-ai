@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "postinstall": "prisma generate",
     "p:m": "npx prisma migrate dev --name init --preview-feature",
     "p:g": "npx prisma generate",
     "p:p": "npx prisma db push",
