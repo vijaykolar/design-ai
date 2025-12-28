@@ -58,7 +58,6 @@ export const generateScreens = inngest.createFunction(
       theme: existingTheme,
     } = event.data;
     const CHANNEL = `user:${userId}`;
-    const isExistingGeneration = Array.isArray(frames) && frames.length > 0;
 
     await publish({
       channel: CHANNEL,
@@ -68,6 +67,20 @@ export const generateScreens = inngest.createFunction(
         projectId: projectId,
       },
     });
+
+    // ALWAYS fetch existing frames from database to ensure UI consistency
+    const existingFrames = await prisma.frame.findMany({
+      where: { projectId },
+      orderBy: { createdAt: "asc" },
+    });
+
+    // Get existing project theme
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: { theme: true },
+    });
+
+    const isExistingGeneration = existingFrames.length > 0;
 
     //Analyze or plan
     const analysis = await step.run("analyze-and-plan-screens", async () => {
@@ -81,7 +94,7 @@ export const generateScreens = inngest.createFunction(
       });
 
       const contextHTML = isExistingGeneration
-        ? frames
+        ? existingFrames
             .map(
               (frame: FrameType) =>
                 `<!-- ${frame.title} -->\n${frame.htmlContent}`
@@ -92,17 +105,20 @@ export const generateScreens = inngest.createFunction(
       const analysisPrompt = isExistingGeneration
         ? `
           USER REQUEST: ${prompt}
-          SELECTED THEME: ${existingTheme}
+          SELECTED THEME: ${project?.theme}
 
           EXISTING SCREENS (analyze for consistency navigation, layout, design system etc):
           ${contextHTML}
 
          CRITICAL REQUIREMENTS A MUST - READ CAREFULLY:
+          - **YOU MUST use the EXACT same theme: ${project?.theme}
           - **Analyze the existing screens' layout, navigation patterns, and design system
           - **Extract the EXACT bottom navigation component structure and styling
           - **Identify common components (cards, buttons, headers) for reuse
-          - **Maintain the same visual hierarchy and spacing
+          - **Maintain the EXACT same visual hierarchy, spacing, fonts, and color scheme
+          - **The new screens MUST look identical in style to existing screens - same fonts, same colors, same spacing
           - **Generate new screens that seamlessly blend with existing ones
+          - **DO NOT change or deviate from the existing design system
         `.trim()
         : `
           USER REQUEST: ${prompt}
@@ -115,7 +131,13 @@ export const generateScreens = inngest.createFunction(
         prompt: analysisPrompt,
       });
 
-      const themeToUse = isExistingGeneration ? existingTheme : object.theme;
+      // CRITICAL: Always use existing project theme if it exists to maintain consistency
+      const themeToUse = isExistingGeneration ? project?.theme : object.theme;
+
+      // Override the theme in the analysis result to enforce consistency
+      if (isExistingGeneration && project?.theme) {
+        object.theme = project.theme;
+      }
 
       if (!isExistingGeneration) {
         await prisma.project.update({
@@ -143,9 +165,8 @@ export const generateScreens = inngest.createFunction(
     });
 
     // Actuall generation of each screens
-    const generatedFrames: typeof frames = isExistingGeneration
-      ? [...frames]
-      : [];
+    // Start with ALL existing frames from database for consistency
+    const generatedFrames: typeof frames = [...existingFrames];
 
     for (let i = 0; i < analysis.screens.length; i++) {
       const screenPlan = analysis.screens[i];
@@ -159,8 +180,8 @@ export const generateScreens = inngest.createFunction(
         ${selectedTheme?.style || ""}
       `;
 
-      // Get all previous existing or generated frames
-      const allPreviousFrames = generatedFrames.slice(0, i);
+      // Get ALL existing frames PLUS newly generated ones for complete context
+      const allPreviousFrames = generatedFrames;
       const previousFramesContext = allPreviousFrames
         .map((f: FrameType) => `<!-- ${f.title} -->\n${f.htmlContent}`)
         .join("\n\n");
@@ -188,10 +209,22 @@ export const generateScreens = inngest.createFunction(
           ${fullThemeCSS}
 
         CRITICAL REQUIREMENTS A MUST - READ CAREFULLY:
-        - **If previous screens exist, COPY the EXACT bottom navigation component structure and styling - do NOT recreate it
-        - **Extract common components (cards, buttons, headers) and reuse their styling
-        - **Maintain the exact same visual hierarchy, spacing, and color scheme
-        - **This screen should look like it belongs in the same app as the previous screens
+        ${
+          allPreviousFrames.length > 0
+            ? `
+        - **CONSISTENCY IS CRITICAL: The new screen MUST match the existing screens exactly in style
+        - **COPY the EXACT same fonts, font sizes, and font weights from existing screens
+        - **COPY the EXACT same color palette - do NOT use different shades or tones
+        - **COPY the EXACT bottom navigation component structure and styling if it exists - do NOT recreate it
+        - **COPY the EXACT header/toolbar structure and styling if it exists
+        - **COPY common components (cards, buttons, headers, inputs) and their EXACT styling
+        - **Maintain the EXACT same visual hierarchy, spacing patterns, padding, and margins
+        - **Use the EXACT same border radius, shadows, and other visual effects
+        - **This screen MUST look like it was designed by the same person at the same time as the existing screens
+        - **DO NOT introduce new design patterns, fonts, or styling that doesn't exist in previous screens
+        `
+            : "- **This is the first screen - establish a consistent design system"
+        }
 
         1. **Generate ONLY raw HTML markup for this mobile app screen using Tailwind CSS.**
           Use Tailwind classes for layout, spacing, typography, shadows, etc.
