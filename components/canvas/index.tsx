@@ -34,7 +34,6 @@ const Canvas = ({
     loadingStatus,
     // setLoadingStatus,
   } = useCanvas();
-  console.log(frames, "freames");
 
   const [toolMode, setToolMode] = useState<ToolModeType>(TOOL_MODE_ENUM.SELECT);
   const [zoomPercent, setZoomPercent] = useState<number>(53);
@@ -161,10 +160,8 @@ const Canvas = ({
       <div className="relative w-full h-full overflow-hidden">
         <CanvasFloatingToolbar
           projectId={projectId}
-          isScreenshotting={false}
-          onScreenshot={() => {}}
-          // isScreenshotting={isScreenshotting}
-          // onScreenshot={handleCanvasScreenshot}
+          isScreenshotting={isScreenshotting}
+          onScreenshot={handleCanvasScreenshot}
         />
 
         {currentStatus && <CanvasLoader status={currentStatus} />}
@@ -224,16 +221,16 @@ const Canvas = ({
                       const baseX = 100 + index * 480;
                       const y = 100;
 
-                      if (frame.isLoading) {
-                        return (
-                          <DeviceFrameSkeleton
-                            key={index}
-                            style={{
-                              transform: `translate(${baseX}px, ${y}px)`,
-                            }}
-                          />
-                        );
-                      }
+                      // if (frame.isLoading) {
+                      //   return (
+                      //     <DeviceFrameSkeleton
+                      //       key={index}
+                      //       style={{
+                      //         transform: `translate(${baseX}px, ${y}px)`,
+                      //       }}
+                      //     />
+                      //   );
+                      // }
                       return (
                         <DeviceFrame
                           key={frame.id}

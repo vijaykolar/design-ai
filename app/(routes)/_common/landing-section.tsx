@@ -193,7 +193,7 @@ const ProjectCard = memo(({ project }: { project: ProjectType }) => {
   const router = useRouter();
   const createdAtDate = new Date(project.createdAt);
   const timeAgo = formatDistanceToNow(createdAtDate, { addSuffix: true });
-  const thumbnail = project.thumbnail || null;
+  const thumbnail = project?.thumbnail || null;
 
   const onRoute = () => {
     router.push(`/project/${project.id}`);

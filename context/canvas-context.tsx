@@ -55,7 +55,7 @@ export const CanvasProvider = ({
   const [themeId, setThemeId] = useState<string>(
     initialThemeId || THEME_LIST[0].id
   );
-  console.log(initialFrames, "initialFrames");
+
   const [frames, setFrames] = useState<FrameType[]>(initialFrames);
   const [selectedFrameId, setSelectedFrameId] = useState<string | null>(null);
 

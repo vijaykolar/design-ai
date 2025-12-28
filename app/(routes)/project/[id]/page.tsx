@@ -15,7 +15,6 @@ export default function ProjectPage() {
   const { data: project, isPending } = useGetProjectById(id!);
   const frames = project?.frames || [];
   const themeId = project?.theme || "";
-  console.log(project, "project");
 
   if (!isPending && !project) {
     return <div>Project not found</div>;

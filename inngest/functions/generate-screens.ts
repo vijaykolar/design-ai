@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { generateObject, generateText, stepCountIs } from "ai";
 import { inngest } from "../client";
 import { z } from "zod";
