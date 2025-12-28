@@ -73,6 +73,11 @@ export const CanvasProvider = ({
     setSelectedFrameId(null);
   }
 
+  // Sync frames when initialFrames changes (e.g., after copy/delete operations)
+  useEffect(() => {
+    setFrames(initialFrames);
+  }, [initialFrames]);
+
   // Fetch custom themes and merge with built-in themes
   const { data: customThemesData } = useCustomThemes();
   const customThemes = customThemesData?.map(convertCustomThemeToThemeType) || [];

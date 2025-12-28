@@ -13,6 +13,8 @@ export type FrameType = {
   title: string;
   htmlContent: string;
   projectId?: string;
+  x?: number;
+  y?: number;
   createdAt?: Date;
   updatedAt?: Date;
 
