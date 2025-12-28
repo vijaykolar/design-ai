@@ -12,6 +12,9 @@ import {
   MoveHorizontal,
   MoveVertical,
   Maximize,
+  Undo2,
+  Redo2,
+  History,
 } from "lucide-react";
 import { Separator } from "../ui/separator";
 import {
@@ -21,6 +24,7 @@ import {
   TooltipTrigger,
 } from "../ui/tooltip";
 import { useState, useEffect } from "react";
+import { useUndoRedo } from "@/features/use-version-history";
 
 type PropsType = {
   zoomIn: () => void;
@@ -29,6 +33,8 @@ type PropsType = {
   zoomPercent: number;
   toolMode: ToolModeType;
   setToolMode: (toolMode: ToolModeType) => void;
+  projectId: string;
+  onOpenVersionHistory: () => void;
 };
 const CanvasControls = ({
   zoomIn,
@@ -37,9 +43,16 @@ const CanvasControls = ({
   zoomPercent,
   toolMode,
   setToolMode,
+  projectId,
+  onOpenVersionHistory,
 }: PropsType) => {
   const [showGrid, setShowGrid] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const { canUndo, undo } = useUndoRedo(projectId);
+
+  // Detect platform for keyboard shortcuts
+  const isMac = typeof window !== 'undefined' && navigator.userAgent.toUpperCase().indexOf('MAC') >= 0;
+  const modKey = isMac ? 'Cmd' : 'Ctrl';
 
   // Listen for fullscreen changes (e.g., F11 or ESC key)
   useEffect(() => {
@@ -50,6 +63,31 @@ const CanvasControls = ({
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
+
+  // Keyboard shortcuts for undo and version history
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isTyping = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
+
+      // Cmd+Z / Ctrl+Z: Undo
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey && !isTyping) {
+        e.preventDefault();
+        if (canUndo) {
+          undo();
+        }
+      }
+
+      // Cmd+H / Ctrl+H: Open version history
+      if ((e.metaKey || e.ctrlKey) && e.key === 'h' && !isTyping) {
+        e.preventDefault();
+        onOpenVersionHistory();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [canUndo, undo, onOpenVersionHistory]);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -192,6 +230,53 @@ const CanvasControls = ({
             </TooltipTrigger>
             <TooltipContent side="top">
               <p>Reset Zoom (0)</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+
+      <Separator orientation="vertical" className="h-5! bg-white/30" />
+
+      {/* Undo/Redo & History Controls */}
+      <div className="flex items-center gap-1">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                className={cn(
+                  "rounded-full cursor-pointer hover:bg-white/20! text-white!",
+                  !canUndo && "opacity-50 cursor-not-allowed"
+                )}
+                onClick={undo}
+                disabled={!canUndo}
+              >
+                <Undo2 className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p>Undo ({modKey}+Z)</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                className={cn(
+                  "rounded-full cursor-pointer hover:bg-white/20! text-white!"
+                )}
+                onClick={onOpenVersionHistory}
+              >
+                <History className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p>Version History ({modKey}+H)</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

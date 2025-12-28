@@ -57,8 +57,8 @@ export function ThemeMarketplaceDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] p-0">
-        <DialogHeader className="px-6 pt-6">
+      <DialogContent className="max-w-3xl max-h-[85vh] p-0 flex flex-col">
+        <DialogHeader className="px-6 pt-6 pb-4 shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <div className="p-2 rounded-lg bg-linear-to-br from-purple-500/10 to-pink-500/10">
               <Store className="size-5 text-purple-600" />
@@ -70,9 +70,9 @@ export function ThemeMarketplaceDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col h-[calc(90vh-120px)] px-6 pb-6">
+        <div className="flex flex-col min-h-0 flex-1 px-6 pb-6">
           {/* Search and Filters */}
-          <div className="space-y-3 pb-4">
+          <div className="space-y-3 pb-4 shrink-0">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <Input
@@ -111,14 +111,14 @@ export function ThemeMarketplaceDialog({
             )}
           </div>
 
-          {/* Themes Grid */}
-          <ScrollArea className="flex-1">
+          {/* Themes List - Single Column with Scroll */}
+          <ScrollArea className="flex-1 -mx-6 px-6">
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Spinner />
               </div>
             ) : filteredThemes && filteredThemes.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pr-4 pb-4">
+              <div className="space-y-3 pr-4 pb-4">
                 {filteredThemes.map((theme) => (
                   <ThemeMarketplaceItem
                     key={theme.id}
@@ -160,98 +160,125 @@ function ThemeMarketplaceItem({ theme, onApply, onLike, isLiked, isLiking }: The
   const colors = parseThemeColors(theme.style);
 
   return (
-    <Card className="group relative hover:shadow-lg transition-all duration-200">
-      <CardContent className="p-4">
-        {/* Header */}
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold truncate mb-1">{theme.name}</h3>
-            {theme.description && (
-              <p className="text-xs text-muted-foreground line-clamp-2">
-                {theme.description}
-              </p>
+    <Card className="overflow-hidden border-2">
+      <CardContent className="p-0">
+        <div className="flex gap-4 p-4">
+          {/* Vertical Color Palette - ColorHunt Style */}
+          <div className="relative shrink-0">
+            <div className="w-16 h-32 rounded-lg overflow-hidden border-2 border-gray-200 shadow-sm">
+              {/* Vertical color strips */}
+              <div className="flex h-full">
+                {/* Primary color */}
+                <div
+                  className="flex-1 transition-all hover:flex-[1.2]"
+                  style={{ backgroundColor: colors.primary }}
+                  title="Primary"
+                />
+                {/* Secondary color */}
+                <div
+                  className="flex-1 transition-all hover:flex-[1.2]"
+                  style={{ backgroundColor: colors.secondary }}
+                  title="Secondary"
+                />
+                {/* Accent color */}
+                <div
+                  className="flex-1 transition-all hover:flex-[1.2]"
+                  style={{ backgroundColor: colors.accent }}
+                  title="Accent"
+                />
+                {/* Muted color */}
+                <div
+                  className="flex-1 transition-all hover:flex-[1.2]"
+                  style={{ backgroundColor: colors.muted }}
+                  title="Muted"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Content section */}
+          <div className="flex-1 flex flex-col min-w-0">
+            {/* Header with Like button */}
+            <div className="flex items-start justify-between gap-3 mb-2">
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-base mb-1 truncate">
+                  {theme.name}
+                </h3>
+                {theme.description && (
+                  <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                    {theme.description}
+                  </p>
+                )}
+              </div>
+
+              {/* Like button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onLike}
+                disabled={isLiking}
+                className={cn(
+                  "shrink-0 rounded-full shadow-md",
+                  isLiked
+                    ? "bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-600"
+                    : "bg-white hover:bg-gray-50"
+                )}
+              >
+                <Heart
+                  className="size-5"
+                  fill={isLiked ? "currentColor" : "none"}
+                />
+              </Button>
+            </div>
+
+            {/* Tags */}
+            {theme.tags && theme.tags.length > 0 && (
+              <div className="flex gap-1.5 mb-3 flex-wrap">
+                {theme.tags.slice(0, 4).map((tag, idx) => (
+                  <Badge key={idx} variant="secondary" className="text-xs px-2 py-0.5">
+                    {tag}
+                  </Badge>
+                ))}
+                {theme.tags.length > 4 && (
+                  <Badge variant="secondary" className="text-xs px-2 py-0.5">
+                    +{theme.tags.length - 4}
+                  </Badge>
+                )}
+              </div>
             )}
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onLike}
-            disabled={isLiking}
-            className={cn(
-              "shrink-0 ml-2 transition-colors",
-              isLiked && "text-red-500 hover:text-red-600"
-            )}
-          >
-            <Heart className={cn("size-4", isLiked && "fill-current")} />
-          </Button>
-        </div>
 
-        {/* Color Preview */}
-        <div
-          className="h-24 rounded-lg mb-3 p-3 flex items-center justify-center relative overflow-hidden border"
-          style={{
-            backgroundColor: colors.background,
-            borderColor: colors.border,
-          }}
-        >
-          <div className="flex gap-2 relative z-10">
-            <div
-              className="w-8 h-8 rounded-full shadow-md border-2 border-white"
-              style={{ backgroundColor: colors.primary }}
-            />
-            <div
-              className="w-8 h-8 rounded-full shadow-md border-2 border-white"
-              style={{ backgroundColor: colors.secondary }}
-            />
-            <div
-              className="w-8 h-8 rounded-full shadow-md border-2 border-white"
-              style={{ backgroundColor: colors.accent }}
-            />
-            <div
-              className="w-8 h-8 rounded-full shadow-md border-2 border-white"
-              style={{ backgroundColor: colors.muted }}
-            />
+            {/* Footer */}
+            <div className="flex items-center justify-between mt-auto pt-3 border-t">
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onLike}
+                  disabled={isLiking}
+                  className={cn(
+                    "h-8 gap-1.5 px-3 rounded-full transition-colors",
+                    isLiked
+                      ? "bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700"
+                      : "text-muted-foreground hover:text-red-600 hover:bg-red-50"
+                  )}
+                >
+                  <Heart
+                    className="size-4"
+                    fill={isLiked ? "currentColor" : "none"}
+                  />
+                  <span className="text-sm font-medium">{theme.likes}</span>
+                </Button>
+              </div>
+              <Button
+                size="sm"
+                onClick={onApply}
+                className="rounded-full bg-linear-to-r from-purple-500 to-indigo-600 text-white hover:from-purple-600 hover:to-indigo-700 shadow-md px-4 h-8"
+              >
+                <Sparkles className="size-3 mr-1.5" />
+                Apply
+              </Button>
+            </div>
           </div>
-
-          {/* Gradient overlay */}
-          <div
-            className="absolute inset-0 opacity-10"
-            style={{
-              background: `linear-gradient(135deg, ${colors.primary}, ${colors.accent})`,
-            }}
-          />
-        </div>
-
-        {/* Tags */}
-        {theme.tags && theme.tags.length > 0 && (
-          <div className="flex gap-1.5 mb-3 flex-wrap">
-            {theme.tags.slice(0, 3).map((tag, idx) => (
-              <Badge key={idx} variant="secondary" className="text-xs">
-                {tag}
-              </Badge>
-            ))}
-            {theme.tags.length > 3 && (
-              <Badge variant="secondary" className="text-xs">
-                +{theme.tags.length - 3}
-              </Badge>
-            )}
-          </div>
-        )}
-
-        {/* Footer */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Heart className="size-3" />
-            <span>{theme.likes}</span>
-          </div>
-          <Button
-            size="sm"
-            onClick={onApply}
-            className="rounded-full bg-linear-to-r from-purple-500 to-indigo-600 text-white hover:from-purple-600 hover:to-indigo-700"
-          >
-            <Sparkles className="size-3 mr-1" />
-            Apply
-          </Button>
         </div>
       </CardContent>
     </Card>

@@ -29,7 +29,9 @@ import {
 } from "../ui/tooltip";
 import { ThemeCreatorDialog } from "./theme-creator-dialog";
 import { ThemeMarketplaceDialog } from "./theme-marketplace-dialog";
+import { VersionHistoryDialog } from "./version-history-dialog";
 import { useCreateCustomTheme } from "@/features/use-custom-theme";
+import { useCreateVersion } from "@/features/use-version-history";
 
 // Quick edit presets for common design modifications
 const QUICK_EDITS = [
@@ -84,6 +86,7 @@ const CanvasFloatingToolbar = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isThemeCreatorOpen, setIsThemeCreatorOpen] = useState(false);
   const [isMarketplaceOpen, setIsMarketplaceOpen] = useState(false);
+  const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
 
   const { mutate, isPending } = useGenerateDesignById(projectId);
   const regenerateFrameMutation = useRegenerateFrame(projectId);
@@ -91,6 +94,11 @@ const CanvasFloatingToolbar = ({
   const update = useUpdateProject(projectId);
   const duplicate = useDuplicateProject();
   const createCustomTheme = useCreateCustomTheme();
+  const createVersion = useCreateVersion(projectId);
+
+  // Detect platform for keyboard shortcuts
+  const isMac = typeof window !== 'undefined' && navigator.userAgent.toUpperCase().indexOf('MAC') >= 0;
+  const modKey = isMac ? 'Cmd' : 'Ctrl';
 
   // Load recent prompts from localStorage on mount
   useEffect(() => {
@@ -111,18 +119,40 @@ const CanvasFloatingToolbar = ({
     localStorage.setItem(`recent-prompts-${projectId}`, JSON.stringify(updated));
   };
 
-  const handleAIGenerate = (customPrompt?: string) => {
+  const handleAIGenerate = async (customPrompt?: string) => {
     const prompt = customPrompt || promptText;
     if (!prompt) return;
+
+    // Create a version snapshot before AI generation
+    const snapshot = {
+      theme: currentTheme?.id || "",
+      frames: frames.map(frame => ({
+        id: frame.id,
+        title: frame.title,
+        htmlContent: frame.htmlContent,
+      })),
+    };
 
     // If a frame is selected, regenerate only that frame
     if (selectedFrameId && selectedFrame) {
       regenerateFrameMutation.mutate(
         { frameId: selectedFrameId, prompt },
         {
-          onSuccess: () => {
+          onSuccess: async () => {
             updateFrame(selectedFrameId, { isLoading: true });
             toast.success(`Regenerating "${selectedFrame.title}"`);
+
+            // Save version after successful generation
+            try {
+              await createVersion.mutateAsync({
+                name: "AI Edit",
+                description: `AI edited "${selectedFrame.title}" with prompt: "${prompt.substring(0, 50)}${prompt.length > 50 ? '...' : ''}"`,
+                snapshot,
+                action: "edit",
+              });
+            } catch (error) {
+              console.error("Failed to save version:", error);
+            }
           },
           onError: () => {
             updateFrame(selectedFrameId, { isLoading: false });
@@ -149,9 +179,35 @@ const CanvasFloatingToolbar = ({
     toast.info(`Applying ${preset.label}...`);
   };
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     if (!currentTheme) return;
-    update.mutate(currentTheme.id);
+
+    // Create a version snapshot before saving
+    const snapshot = {
+      theme: currentTheme.id,
+      frames: frames.map(frame => ({
+        id: frame.id,
+        title: frame.title,
+        htmlContent: frame.htmlContent,
+      })),
+    };
+
+    try {
+      // Save the version
+      await createVersion.mutateAsync({
+        name: "Manual Save",
+        description: `Saved with theme: ${currentTheme.name}`,
+        snapshot,
+        action: "save",
+      });
+
+      // Update the project
+      update.mutate(currentTheme.id);
+    } catch (error) {
+      console.error("Failed to create version:", error);
+      // Still save even if version creation fails
+      update.mutate(currentTheme.id);
+    }
   };
 
   const handleDuplicate = () => {
@@ -175,22 +231,22 @@ const CanvasFloatingToolbar = ({
     }
   }, [isEditPopoverOpen]);
 
-  // Keyboard shortcut for opening inline edit (Cmd+E / Ctrl+E)
+  // Keyboard shortcuts (Cmd+E for inline edit, Cmd+H for version history)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isTyping = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
+
       // Cmd+E or Ctrl+E to open inline edit
-      if ((e.metaKey || e.ctrlKey) && e.key === 'e') {
-        const target = e.target as HTMLElement;
-        // Don't trigger if already typing in an input/textarea
-        if (
-          target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.isContentEditable
-        ) {
-          return;
-        }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'e' && !isTyping) {
         e.preventDefault();
         setIsEditPopoverOpen(prev => !prev);
+      }
+
+      // Cmd+H / Ctrl+H: Open version history
+      if ((e.metaKey || e.ctrlKey) && e.key === 'h' && !isTyping) {
+        e.preventDefault();
+        setIsVersionHistoryOpen(true);
       }
 
       // Escape to close popover
@@ -278,8 +334,8 @@ const CanvasFloatingToolbar = ({
                 <TooltipContent>
                   <p>
                     {selectedFrameId
-                      ? `AI Inline Edit (Cmd+E) - ${selectedFrame?.title}`
-                      : "Select a frame to edit (Cmd+E)"}
+                      ? `AI Inline Edit (${modKey}+E) - ${selectedFrame?.title}`
+                      : `Select a frame to edit (${modKey}+E)`}
                   </p>
                 </TooltipContent>
               </Tooltip>
@@ -305,7 +361,7 @@ const CanvasFloatingToolbar = ({
                     )}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    Cmd+Enter
+                    {modKey}+Enter
                   </div>
                 </div>
 
@@ -563,6 +619,13 @@ const CanvasFloatingToolbar = ({
         open={isMarketplaceOpen}
         onOpenChange={setIsMarketplaceOpen}
         onSelectTheme={setTheme}
+      />
+
+      {/* Version History Dialog */}
+      <VersionHistoryDialog
+        open={isVersionHistoryOpen}
+        onOpenChange={setIsVersionHistoryOpen}
+        projectId={projectId}
       />
     </div>
   );

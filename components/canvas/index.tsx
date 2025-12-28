@@ -9,6 +9,7 @@ import { TOOL_MODE_ENUM, ToolModeType } from "@/constants/canvas";
 import CanvasControls from "./canvas-controls";
 import DeviceFrame from "./device-frame";
 import HtmlDialog from "./html-dialog";
+import { VersionHistoryDialog } from "./version-history-dialog";
 import { toast } from "sonner";
 import DeviceFrameSkeleton from "./device-frame-skeleton";
 
@@ -41,6 +42,7 @@ const Canvas = ({
   const [openHtmlDialog, setOpenHtmlDialog] = useState(false);
   const [isScreenshotting, setIsScreenshotting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
 
   const canvasRootRef = useRef<HTMLDivElement>(null);
   const transformWrapperRef = useRef<any>(null);
@@ -344,6 +346,8 @@ const Canvas = ({
                   zoomPercent={zoomPercent}
                   toolMode={toolMode}
                   setToolMode={setToolMode}
+                  projectId={projectId}
+                  onOpenVersionHistory={() => setIsVersionHistoryOpen(true)}
                 />
               </>
             );
@@ -357,6 +361,12 @@ const Canvas = ({
         theme_style={theme?.style}
         open={openHtmlDialog}
         onOpenChange={setOpenHtmlDialog}
+      />
+
+      <VersionHistoryDialog
+        open={isVersionHistoryOpen}
+        onOpenChange={setIsVersionHistoryOpen}
+        projectId={projectId}
       />
     </>
   );

@@ -54,3 +54,18 @@ model CustomTheme {
   @@index([userId])
   @@index([isPublic])
 }
+
+model Version {
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  projectId   String  @db.ObjectId
+  userId      String
+  name        String?
+  description String?
+  snapshot    String
+  action      String
+
+  createdAt DateTime @default(now())
+
+  @@index([projectId])
+  @@index([userId])
+}
